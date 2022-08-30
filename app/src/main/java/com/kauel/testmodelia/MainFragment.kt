@@ -18,16 +18,14 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.kauel.testmodelia.databinding.FragmentMainBinding
-import com.kauel.testmodelia.utils.ASSETS_NAME
-import com.kauel.testmodelia.utils.FILE_NAME_ASSETS
-import com.kauel.testmodelia.utils.gone
-import com.kauel.testmodelia.utils.visible
+import com.kauel.testmodelia.utils.*
 import org.pytorch.IValue
 import org.pytorch.LiteModuleLoader
 import org.pytorch.Module
 import org.pytorch.torchvision.TensorImageUtils
 import java.io.*
 import java.util.*
+
 
 class MainFragment : Fragment(R.layout.fragment_main) {
 
@@ -57,25 +55,27 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             btnFindImage.setOnClickListener {
                 val gallery =
                     Intent(Intent.ACTION_PICK, MediaStore.Images.Media.INTERNAL_CONTENT_URI)
-                gallery.type = "image/*"
                 startActivityForResult(gallery, pickImage)
             }
             btnProcessIA.setOnClickListener {
                 tvTimeStart.text = getTimeNow()
                 pbLoadIA.visible()
-                val bitmap =
-                    MediaStore.Images.Media.getBitmap(requireActivity().contentResolver,
-                        imageUri)
-                val path = getRealPathFromURI(imageUri, requireActivity())
-                val orientation = getCameraPhotoOrientation(requireContext(),
-                    imageUri, path)
-                val rotated = rotateBitmap(bitmap, orientation.toFloat())
-                val fileTemp = File(requireContext().cacheDir, "temp1")
-                processIaImage(mBitmap = rotated!!,
-                    imageView = imageView,
-                    progressBar = pbLoadIA,
-                    file = fileTemp,
-                    timeEnd = tvTimeEnd)
+                try {
+                    val path = getRealPathFromURI(imageUri, requireActivity())
+                    val bitmap = BitmapFactory.decodeFile(path)
+                    val orientation = getCameraPhotoOrientation(requireContext(),
+                        imageUri, path)
+                    val rotated = rotateBitmap(bitmap, orientation.toFloat())
+                    val fileTemp = File(requireContext().cacheDir, "temp")
+                    processIaImage(mBitmap = rotated!!,
+                        imageView = imageView,
+                        progressBar = pbLoadIA,
+                        file = fileTemp,
+                        timeEnd = tvTimeEnd)
+                } catch (e: Exception) {
+                    view?.makeSnackbar(e.message.toString(), false)
+                }
+
             }
         }
     }
@@ -149,10 +149,10 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         file: File,
         timeEnd: TextView,
     ) {
-        imageView.setImageBitmap(mBitmap)
-
-        mBitmap.compress(Bitmap.CompressFormat.JPEG, 100, FileOutputStream(file))
-        val canvas = Canvas(mBitmap)
+        mBitmap.compress(Bitmap.CompressFormat.JPEG, 90, FileOutputStream(file))
+        val mutableBitmap: Bitmap = mBitmap.copy(Bitmap.Config.ARGB_8888, true)
+        imageView.setImageBitmap(mutableBitmap)
+        val canvas = Canvas(mutableBitmap)
 
         val mImgScaleX = mBitmap.width.toFloat() / PrePostProcessor.mInputWidth
         val mImgScaleY = mBitmap.height.toFloat() / PrePostProcessor.mInputHeight
@@ -189,20 +189,23 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 requireActivity().runOnUiThread(Runnable {
                     val mPaintRectangle = Paint()
 
+                    view?.makeSnackbar(results.size.toString(), true)
+
                     for (result in results) {
                         mPaintRectangle.strokeWidth = 40f
                         mPaintRectangle.style = Paint.Style.STROKE
-                        when (result.classIndex) {
-                            1 -> {
-                                mPaintRectangle.color = Color.GREEN
-                            }
-                            2 -> {
-                                mPaintRectangle.color = Color.RED
-                            }
-                            0 -> {
-                                mPaintRectangle.color = Color.YELLOW
-                            }
-                        }
+                        mPaintRectangle.color = Color.GREEN
+//                        when (result.classIndex) {
+//                            0 -> {
+//                                mPaintRectangle.color = Color.YELLOW
+//                            }
+//                            1 -> {
+//                                mPaintRectangle.color = Color.GREEN
+//                            }
+//                            2 -> {
+//                                mPaintRectangle.color = Color.RED
+//                            }
+//                        }
                         canvas.drawRect(result.rect, mPaintRectangle)
                     }
                     progressBar.gone()

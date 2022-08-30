@@ -1,0 +1,14 @@
+Animal
+Bus
+Camion
+Chasis
+GHorquilla
+Maquinaria
+MConstruccion
+Persona
+Pickup
+Piscina
+Poste
+Tractor
+Vehiculo
+Zanja
